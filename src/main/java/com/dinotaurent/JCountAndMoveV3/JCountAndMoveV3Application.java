@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class JCountAndMoveV3Application {
     public static void main(String[] args) {
         SpringApplication.run(JCountAndMoveV3Application.class, args);
-        System.out.println("Se inicia el servicio en la clase main");
     }
 
 }

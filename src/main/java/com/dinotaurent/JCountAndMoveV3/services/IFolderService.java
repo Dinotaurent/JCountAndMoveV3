@@ -8,5 +8,7 @@ public interface IFolderService {
     void contar();
     void obtenerNombresArchivos();
     void mover();
-    void reinciarServicios();
+    void limpiar();
+    void reiniciarServicios();
+
 }
