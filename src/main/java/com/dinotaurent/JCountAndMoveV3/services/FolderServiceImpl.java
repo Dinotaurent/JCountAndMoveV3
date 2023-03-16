@@ -38,7 +38,6 @@ public class FolderServiceImpl implements IFolderService {
     private List<String> nombresArchivosEntrada = new ArrayList<>();
     private List<String> nombresArchivosTemporal = new ArrayList<>();
     private static final SimpleDateFormat SDF = new SimpleDateFormat("MMddyyyyHHmmss");
-    private Path mover;
     private boolean renombrado = false;
     private int MAX_INTENTOS = 3;
     private int intentos = 0;
@@ -49,12 +48,12 @@ public class FolderServiceImpl implements IFolderService {
     FileFilter filtro = (File file) -> !file.isHidden() && file.getName().endsWith(".txt") && file.length() > 0;
 
     /* Secuencias y escenarios
-    1. Secuencia A: Cantidad de documentos mayor a la admitida o bloqueo de los servicios, documentos nuevos que superan el limite.  linea: 170.
-    2. Secuencia B: Se dosifican documentos a la ruta de entrada.  linea: 207.
+    1. Secuencia A: Cantidad de documentos mayor a la admitida, bloqueo de los servicios ,documentos nuevos que superan el limite o documentos rezagados.  linea: 169.
+    2. Secuencia B: Se dosifican documentos a la ruta de entrada.  linea: 206.
     */
 
     //Se proporciona el intervalo de ejecucion.
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 60000) // 1 minuto
     @Override
     public void contar() {
         System.out.println("Se ejecuta metodo contar");
@@ -71,11 +70,11 @@ public class FolderServiceImpl implements IFolderService {
             LOG.info("No se encontraron documentos pendientes");
         } else if (contadorEntrada > 0) {
             LOG.info("Se encontraron: " + contadorEntrada + " documentos en la ruta de entrada.");
-            if (contadorEntrada > 5 && contadorTemp > 0) {
+            if (contadorEntrada > 20 && contadorTemp > 0) {
                 LOG.info("Se detectaron documentos nuevos que bloquearian el servicio, se procedera moverlos a la temporal.");
-                obtenerNombresArchivos();
                 nuevos = true;
-            } else if (contadorEntrada > 5) {
+                obtenerNombresArchivos();
+            } else if (contadorEntrada > 20) {
                 LOG.info("La cantidad de documentos supera el limite permitido en la ruta de entrada lo cual bloqueara los servicio, se procedera mover los documentos y reiniciar servicios.");
                 obtenerNombresArchivos();
             } else {
@@ -131,8 +130,8 @@ public class FolderServiceImpl implements IFolderService {
                         return String.valueOf(sb);
                     })
                     .collect(Collectors.toList());
-            if (nuevos){
-                nombresArchivosEntrada.subList(0,5).clear();
+            if (nuevos) {
+                nombresArchivosEntrada.subList(0, 20).clear();
             }
         }
 
@@ -167,7 +166,7 @@ public class FolderServiceImpl implements IFolderService {
         //Se mueven documentos dependiendo de los contadores.
 
         //Secuencia: A
-        if (contadorEntrada > 5 && contadorTemp == 0 || rezagado || nuevos) {
+        if (contadorEntrada > 20 && contadorTemp == 0 || rezagado || nuevos) {
             System.out.println("Entra en la secuencia A");
             //Se recorre la lista de documentos y se crea un path
             nombresArchivosEntrada.forEach(archivo -> {
@@ -176,7 +175,7 @@ public class FolderServiceImpl implements IFolderService {
 
                 //Se intenta mover el documento.
                 try {
-                    mover = Files.move(documento, destino.resolveSibling(destino));
+                    Files.move(documento, destino.resolveSibling(destino));
                     LOG.info("Se movio el archivo " + documento + " a la ruta: " + PATH_TEMP);
                 } catch (IOException e) {
                     LOG.error(e);
@@ -208,7 +207,7 @@ public class FolderServiceImpl implements IFolderService {
             System.out.println("Entra en la secuenca B");
             LOG.info("Se procedera a dosificar documentos a la entrada.");
             nombresArchivosTemporal.forEach(archivo -> {
-                if (contador2 < 5) {
+                if (contador2 < 20) {
                     Path documento = Paths.get(PATH_TEMP).resolve(archivo);
                     Path destino = Paths.get(PATH_ENTRADA).resolve(archivo);
 
@@ -228,7 +227,6 @@ public class FolderServiceImpl implements IFolderService {
 
     @Override
     public void limpiar() {
-        System.out.println("Se ejecuta metodo limpiarListas");
         contador2 = 0;
         renombrado = false;
         contador = 0;
